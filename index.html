@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Codein</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --fg: #ffffff;
+      --muted: rgba(255, 255, 255, 0.36);
+      --dim: rgba(255, 255, 255, 0.13);
+      --soft: rgba(255, 255, 255, 0.74);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: var(--fg);
+      font-family: "Space Mono", monospace;
+    }
+
+    body {
+      min-height: 100dvh;
+      padding: clamp(26px, 5vw, 64px);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 10px;
+      cursor: crosshair;
+      position: relative;
+    }
+
+    #video-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #video-bg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100vw;
+      height: 100vh;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      opacity: 0.58;
+      filter: grayscale(1) brightness(0.50) contrast(1.12);
+      transform: translate(-50%, -50%) scale(1.55);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 65% 20%, rgba(255,255,255,0.045), transparent 24%),
+        radial-gradient(circle at 22% 76%, rgba(255,255,255,0.025), transparent 28%),
+        linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.72));
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.045;
+      mix-blend-mode: screen;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0.45;
+    }
+
+    .glow {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(80px);
+      opacity: 0.08;
+      animation: glowMove 13s ease-in-out infinite alternate;
+      mix-blend-mode: screen;
+    }
+
+    .glow.one {
+      width: 300px;
+      height: 300px;
+      left: 8%;
+      top: 18%;
+      background: rgba(120, 100, 255, 0.28);
+    }
+
+    .glow.two {
+      width: 360px;
+      height: 360px;
+      right: 10%;
+      top: 18%;
+      background: rgba(120, 200, 255, 0.16);
+      animation-delay: -5s;
+    }
+
+    .glow.three {
+      width: 380px;
+      height: 380px;
+      left: 40%;
+      bottom: -10%;
+      background: rgba(255, 255, 255, 0.055);
+      animation-delay: -8s;
+    }
+
+    @keyframes glowMove {
+      from { transform: translate3d(-18px, 10px, 0) scale(0.95); }
+      to { transform: translate3d(24px, -18px, 0) scale(1.08); }
+    }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: grid;
+      place-items: center;
+      background: #000;
+      transition: opacity 0.75s ease, visibility 0.75s ease;
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader-box {
+      width: min(420px, calc(100vw - 48px));
+      display: grid;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .loader-title {
+      color: rgba(255,255,255,0.82);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.44em;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .loader-sub {
+      color: rgba(255,255,255,0.22);
+      font-size: 8px;
+      letter-spacing: 0.30em;
+    }
+
+    .loader-line {
+      width: 100%;
+      height: 2px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .loader-progress {
+      width: 0%;
+      height: 100%;
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 0 16px rgba(255,255,255,0.42);
+      transition: width 0.12s linear;
+    }
+
+    .loader-meta {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(255,255,255,0.30);
+      font-size: 8px;
+      letter-spacing: 0.24em;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.42; }
+      50% { opacity: 1; }
+    }
+
+    #ui {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    #ui.ready {
+      opacity: 1;
+      visibility: visible;
+      animation: fadeIn 0.8s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .logo-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .logo {
+      color: #fff;
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: 0.42em;
+      text-shadow: 0 0 10px rgba(255,255,255,0.14);
+    }
+
+    .logo-sub {
+      color: var(--dim);
+      font-size: 8px;
+      letter-spacing: 0.26em;
+    }
+
+    .sys-info {
+      color: var(--muted);
+      font-size: 8px;
+      line-height: 1.8;
+      text-align: right;
+    }
+
+    .core {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: clamp(6px, 1.6vw, 24px);
+      padding-bottom: 4vh;
+    }
+
+    .text-block {
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .mini-label {
+      color: rgba(255,255,255,0.20);
+      font-size: 8px;
+      letter-spacing: 0.28em;
+    }
+
+    #terminal-text {
+      color: var(--soft);
+      font-size: clamp(8px, 0.72vw, 11px);
+      line-height: 2.05;
+      white-space: pre-wrap;
+      word-break: break-word;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      text-shadow: 0 0 10px rgba(255,255,255,0.035);
+      min-height: 95px;
+      max-width: 460px;
+    }
+
+    #terminal-text.typing::after,
+    #terminal-text.done::after {
+      content: "_";
+      animation: flash 1s step-end infinite;
+    }
+
+    @keyframes flash {
+      50% { opacity: 0; }
+    }
+
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .version {
+      color: rgba(255,255,255,0.10);
+      font-size: 8px;
+      letter-spacing: 0.26em;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      text-align: right;
+    }
+
+    .nav span {
+      color: var(--muted);
+      font-size: 9px;
+      padding: 5px 0;
+      transition: color 0.25s ease, transform 0.25s ease, text-shadow 0.25s ease;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .nav span:hover,
+    .nav span.active {
+      color: #fff;
+      transform: translateX(-4px);
+      text-shadow: 0 0 14px rgba(255,255,255,0.18);
+    }
+
+    .media-player {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(24px, 4.2vh, 46px);
+      transform: translateX(-50%);
+      z-index: 20;
+      width: min(430px, calc(100vw - 48px));
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.045);
+      opacity: 0.84;
+    }
+
+    .media-btn {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.045);
+      color: rgba(255,255,255,0.78);
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      letter-spacing: 0;
+      cursor: pointer;
+      transition: 0.25s ease;
+    }
+
+    .media-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.075);
+      box-shadow: 0 0 18px rgba(255,255,255,0.08);
+    }
+
+    .media-data {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .media-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .media-title {
+      color: rgba(255,255,255,0.74);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .media-state {
+      color: rgba(255,255,255,0.25);
+      font-size: 7px;
+      letter-spacing: 0.22em;
+      white-space: nowrap;
+    }
+
+    .media-line {
+      width: 100%;
+      height: 1px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .media-progress {
+      width: 0%;
+      height: 100%;
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 0 14px rgba(255,255,255,0.28);
+    }
+
+    .media-volume {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 2px;
+    }
+
+    .volume-label {
+      color: rgba(255,255,255,0.28);
+      font-size: 7px;
+      letter-spacing: 0.22em;
+      min-width: 28px;
+    }
+
+    .volume-slider {
+      width: 100%;
+      height: 2px;
+      appearance: none;
+      -webkit-appearance: none;
+      background: rgba(255,255,255,0.10);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 0 14px rgba(255,255,255,0.28);
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 0 14px rgba(255,255,255,0.28);
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 24px; }
+      .logo { font-size: 12px; }
+      .sys-info { font-size: 7px; }
+      #terminal-text { font-size: 8px; line-height: 1.95; min-height: 90px; }
+      .core { align-items: center; padding-left: 0; }
+      .nav { gap: 10px; }
+      .media-player {
+        bottom: 90px;
+        width: min(320px, calc(100vw - 44px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="loader-box">
+      <div class="loader-title">INITIALIZING_CODEIN</div>
+      <div class="loader-sub">loading void interface</div>
+      <div class="loader-line">
+        <div class="loader-progress" id="loader-progress"></div>
+      </div>
+      <div class="loader-meta">
+        <span>SYS_BOOT</span>
+        <span><span id="percent">00</span>%</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="video-container">
+    <video id="video-bg" autoplay muted loop playsinline>
+      <source src="./video.mp4" type="video/mp4" />
+      <source src="./milana.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+  <audio id="bg-music" loop preload="auto" autoplay>
+    <source src="./s0row.mp3" type="audio/mpeg" />
+  </audio>
+
+  <div class="overlay"></div>
+  <div class="noise"></div>
+
+  <div class="ambient">
+    <div class="glow one"></div>
+    <div class="glow two"></div>
+    <div class="glow three"></div>
+  </div>
+
+  <div id="ui">
+    <header class="header">
+      <div class="logo-wrap">
+        <div class="logo">Codein</div>
+        <div class="logo-sub">personal void interface</div>
+      </div>
+
+      <div class="sys-info">
+        NODE_STABLE<br>
+        2026 // ONLINE
+      </div>
+    </header>
+
+    <main class="core">
+      <section class="text-block">
+        <div class="mini-label" id="panel-title">01 / INDEX</div>
+        <div id="terminal-text"></div>
+      </section>
+    </main>
+
+    <div class="media-player">
+      <button class="media-btn" id="media-btn" type="button">▶</button>
+      <div class="media-data">
+        <div class="media-row">
+          <div class="media-title">S0ROW.MP3</div>
+          <div class="media-state" id="media-state">PAUSED</div>
+        </div>
+        <div class="media-line">
+          <div class="media-progress" id="media-progress"></div>
+        </div>
+        <div class="media-volume">
+          <span class="volume-label">VOL</span>
+          <input class="volume-slider" id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.42" />
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div class="version">CODEIN_OS v.3.4</div>
+
+      <nav class="nav">
+        <span class="active" onclick="showPage('index', this)">01 / INDEX</span>
+        <span onclick="showPage('echo', this)">02 / ECHOES</span>
+        <span onclick="copyTag(this)">03 / DISCORD</span>
+      </nav>
+    </footer>
+  </div>
+
+  <script>
+    const pages = {
+      index:
+`В МИРЕ БЕСКОНЕЧНОГО ШУМА Я ВЫБИРАЮ ТИШИНУ.
+
+ЭСТЕТИКА АБСОЛЮТНОЙ ПУСТОТЫ.
+
+ДОБРО ПОЖАЛОВАТЬ.`,
+
+      echo:
+`СВЯЗЬ УСТАНОВЛЕНА.
+
+DISCORD: CODEIN
+
+ВСЕ ОСТАЛЬНЫЕ УЗЛЫ ОТКЛЮЧЕНЫ.`
+    };
+
+    const pageTitles = {
+      index: "01 / INDEX",
+      echo: "02 / ECHOES"
+    };
+
+    let typingTimeouts = [];
+
+    function clearTyping() {
+      typingTimeouts.forEach((timeout) => clearTimeout(timeout));
+      typingTimeouts = [];
+    }
+
+    function typeText(text) {
+      const terminal = document.getElementById("terminal-text");
+      if (!terminal) return;
+
+      clearTyping();
+      terminal.textContent = "";
+      terminal.classList.remove("done");
+      terminal.classList.add("typing");
+
+      let i = 0;
+      const speed = 26;
+
+      function printNext() {
+        if (i >= text.length) {
+          terminal.classList.remove("typing");
+          terminal.classList.add("done");
+          return;
+        }
+
+        terminal.textContent += text[i];
+        i++;
+
+        const timeout = setTimeout(printNext, speed);
+        typingTimeouts.push(timeout);
+      }
+
+      printNext();
+    }
+
+    function showPage(page, el) {
+      if (!pages[page]) return;
+
+      const title = document.getElementById("panel-title");
+      document.querySelectorAll(".nav span").forEach((item) => item.classList.remove("active"));
+      el.classList.add("active");
+
+      if (title) title.textContent = pageTitles[page] || page;
+      typeText(pages[page]);
+    }
+
+    function copyTag(el) {
+      const oldText = el.textContent;
+      el.textContent = "COPIED_";
+
+      setTimeout(() => {
+        el.textContent = oldText;
+      }, 1500);
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText("Codein").catch(() => {});
+      }
+    }
+
+    const audio = document.getElementById("bg-music");
+    const mediaBtn = document.getElementById("media-btn");
+    const mediaState = document.getElementById("media-state");
+    const mediaProgress = document.getElementById("media-progress");
+    const volumeSlider = document.getElementById("volume-slider");
+
+    if (audio) {
+      audio.volume = 0.42;
+    }
+
+    if (volumeSlider && audio) {
+      volumeSlider.addEventListener("input", () => {
+        audio.volume = Number(volumeSlider.value);
+      });
+    }
+
+    function updateMediaState() {
+      if (!audio || !mediaBtn || !mediaState) return;
+      mediaBtn.textContent = audio.paused ? "▶" : "Ⅱ";
+      mediaState.textContent = audio.paused ? "PAUSED" : "PLAYING";
+    }
+
+    if (mediaBtn && audio) {
+      mediaBtn.addEventListener("click", () => {
+        if (audio.paused) {
+          audio.play().catch(() => {});
+        } else {
+          audio.pause();
+        }
+        updateMediaState();
+      });
+
+      audio.addEventListener("play", updateMediaState);
+      audio.addEventListener("pause", updateMediaState);
+      audio.addEventListener("timeupdate", () => {
+        if (!mediaProgress || !audio.duration) return;
+        mediaProgress.style.width = ((audio.currentTime / audio.duration) * 100) + "%";
+      });
+    }
+
+    function startLoader() {
+      const loader = document.getElementById("loader");
+      const ui = document.getElementById("ui");
+      const percent = document.getElementById("percent");
+      const bar = document.getElementById("loader-progress");
+
+      let progress = 0;
+      let opened = false;
+
+      function openSite() {
+        if (opened) return;
+        opened = true;
+        progress = 100;
+
+        if (percent) percent.textContent = "100";
+        if (bar) bar.style.width = "100%";
+
+        setTimeout(() => {
+          if (loader) loader.classList.add("hidden");
+          if (ui) ui.classList.add("ready");
+          if (audio) {
+            audio.play().catch(() => {
+              updateMediaState();
+            });
+          }
+          updateMediaState();
+          typeText(pages.index);
+        }, 260);
+      }
+
+      const timer = setInterval(() => {
+        progress += Math.floor(Math.random() * 9) + 5;
+
+        if (progress >= 100) {
+          progress = 100;
+          if (percent) percent.textContent = "100";
+          if (bar) bar.style.width = "100%";
+          clearInterval(timer);
+          openSite();
+          return;
+        }
+
+        if (percent) percent.textContent = String(progress).padStart(2, "0");
+        if (bar) bar.style.width = progress + "%";
+      }, 95);
+
+      setTimeout(openSite, 2400);
+    }
+
+    startLoader();
+  </script>
+</body>
+</html>
